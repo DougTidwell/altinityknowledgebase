@@ -21,7 +21,7 @@ That is a different problem from retry-safe insert deduplication, which ClickHou
 The reason is simple: to check if the row already exists you need a lookup that is closer to a key-value access pattern (which is not what ClickHouse is optimized for),
 in general case - across the whole huge table (which can be terabyte/petabyte size).
 
-But there many usecases when you can archive something like row-level deduplication in ClickHouse:
+But there many usecases when you can achieve something like row-level deduplication in ClickHouse:
 
 ### Approach 0. Make deduplication before ingesting data to ClickHouse
 
@@ -44,33 +44,33 @@ Cons:
 - complicates selects
 - all selects will be significantly slower
 
-### Approach 2. Eventual deduplication using Replacing  
+### Approach 2. Eventual deduplication using ReplacingMergeTree  
 
 Pros:
 - simple
 
 Cons:
-- can force you to use suboptimal primary key (which will guarantee record uniqueness)
+- can force you to use suboptimal ORDER BY (which will guarantee record uniqueness)
 - deduplication is eventual - you never know when it will happen, and you will get some duplicates if you don't use `FINAL`
 - selects with `FINAL` (`select * from table_name FINAL`) add overhead and should be benchmarked
   - older versions often needed manual optimization https://github.com/ClickHouse/ClickHouse/issues/31411
   - performance has improved significantly in recent releases, so `FINAL` is often acceptable in production workloads https://clickhouse.com/blog/common-getting-started-issues-with-clickhouse
   - additional tuning notes: https://kb.altinity.com/altinity-kb-queries-and-syntax/altinity-kb-final-clause-speed/
 
-### Approach 3. Eventual deduplication using Collapsing 
+### Approach 3. Eventual deduplication using CollapsingMergeTree 
 
 Pros:
 - you can make the proper aggregations of last state w/o `FINAL` (bookkeeping-alike sums, counts etc)
 
 Cons:
 - complicated
-- can force you to use suboptimal primary key (which will guarantee record uniqueness)
+- can force you to use suboptimal ORDER BY (which will guarantee record uniqueness)
 - you need to store previous state of the record somewhere, or extract it before ingestion from ClickHouse
 - deduplication is eventual (same as with Replacing)
 
 ### Approach 4. Eventual deduplication using Summing/Aggregating/CoalescingMergeTree
 
-use SimpleAggregateFunction( anyLast, ...) or Aggregating with argMax for Summing/AggregatingMT.
+use SimpleAggregateFunction( anyLast, ...) or AggregateFunction with argMax for Summing/AggregatingMT.
 CoalescingMergeTree implies anyLast by default
 
 Pros:
@@ -78,8 +78,8 @@ Pros:
 
 Cons:
 - quite complicated
-- can force you to use suboptimal primary key (which will guarantee record uniqueness)
-- deduplication is eventual (same as with Replacing)
+- can force you to use suboptimal ORDER BY (which will guarantee record uniqueness)
+- deduplication is eventual (same as with ReplacingMergeTree)
 
 Example: keep the latest version of each row in an `AggregatingMergeTree` table and read the finalized state with `GROUP BY`:
 
@@ -132,7 +132,7 @@ select id, metric as metric_state
 from Example4Raw;
 ```
 
-### Approach 5. Keep data fragment where duplicates are possible isolated. 
+### Approach 5. Keep data fragments where duplicates are possible to isolate.
 
 Usually you can expect the duplicates only in some time window (like 5 minutes, or one hour, or something like that).
 
