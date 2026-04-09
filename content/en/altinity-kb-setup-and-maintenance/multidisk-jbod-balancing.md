@@ -72,6 +72,15 @@ Example of least_used policy:
 
 ## Manual Rebalancing Parts over JBOD Disks
 
+Following query will select large parts in target_tables and target_databases that can be candidates to move to another disk. Disk chosen should comply with the following requirements:
+- Should only select valid moves for the same storage_policy used by that table
+- storage_policy must be JBODs type
+- moves to other disks in the same volume
+- select a different disk, i.e not the same disk as the one that part is in
+- select the disk to move the part to by order of largest free_space on that disk
+
+Set `target_tables` and `target_databases` based on requirements.
+
 ```sql
 WITH
     '%' AS target_tables,
