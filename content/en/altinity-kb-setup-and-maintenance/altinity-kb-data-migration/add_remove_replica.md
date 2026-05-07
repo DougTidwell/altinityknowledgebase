@@ -18,7 +18,7 @@ To add some ClickHouse® replicas to an existing cluster if -30TB then better to
 
 [Core Settings | ClickHouse Docs](https://clickhouse.com/docs/en/operations/settings/settings/#max_replicated_fetches_network_bandwidth_for_server)
 
-💡 Do the **Gbps to Bps** math correctly. For 10G —> 1250MB/s —> 1250000000 B/s and change the `max_replicated_*` settings accordingly (_changing these settings restarts the server_):
+💡 Do the **Gbps to Bps** math correctly. For 10G —> 1250MB/s —> 1250000000 B/s. Change the `max_replicated_*` settings accordingly and add them to a file in `/etc/clickhouse-server/config.d/` (e.g., `config.d/replication-limits.xml`) and restart ClickHouse:
 
 - Nodes replicating from:
 
@@ -176,6 +176,8 @@ FORMAT TSVRaw;
     - reduce fetches from 8 to 4
     - increase moves from 8 to 16
 
+Add these settings to a file in `/etc/clickhouse-server/config.d/` (e.g., `config.d/replication-limits.xml`) and restart ClickHouse:
+
 ```xml
 <clickhouse>
   <max_replicated_fetches_network_bandwidth_for_server>625000000</max_replicated_fetches_network_bandwidth_for_server>
@@ -183,8 +185,6 @@ FORMAT TSVRaw;
   <background_move_pool_size>16</background_move_pool_size>
 </clickhouse>
 ```
-
-*Changing these settings restarts the server.*
 
 - Also to monitor this with:
 
